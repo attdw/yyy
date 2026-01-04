@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俄罗斯方块 | 纯前端版</title>
+    <style>
+        /* ===================== 全局样式 ===================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* 游戏容器 */
+        .game-container {
+            display: flex;
+            gap: 30px;
+            max-width: 900px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* 游戏标题 */
+        .game-title {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #00f5d4, #00bbf9);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 245, 212, 0.3);
+            text-align: center;
+        }
+
+        /* 游戏网格区域 */
+        .game-grid-wrapper {
+            position: relative;
+            background: rgba(0, 0, 0, 0.5);
+            border: 3px solid #333;
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+        }
+
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(20, 30px);
+            gap: 1px;
+            background: #111;
+        }
+
+        .grid-cell {
+            width: 30px;
+            height: 30px;
+            background: #222;
+            border-radius: 2px;
+        }
+
+        /* 信息面板 */
+        .info-panel {
+            background: rgba(0, 0, 0, 0.5);
+            border: 3px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            width: 250px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+        }
+
+        .info-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #00f5d4;
+            border-bottom: 2px solid #444;
+            padding-bottom: 8px;
+        }
+
+        .info-item {
+            margin: 12px 0;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .info-label {
+            color: #aaa;
+        }
+
+        .info-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* 下一个方块预览区 */
+        .next-piece-wrapper {
+            margin-top: 20px;
+        }
+
+        #next-piece {
+            display: grid;
+            grid-template-columns: repeat(4, 25px);
+            grid-template-rows: repeat(4, 25px);
+            gap: 1px;
+            background: #111;
+            padding: 5px;
+            border-radius: 4px;
+            margin: 10px auto;
+            width: fit-content;
+        }
+
+        .next-cell {
+            width: 25px;
+            height: 25px;
+            background: #222;
+            border-radius: 2px;
+        }
+
+        /* 控制说明 */
+        .controls {
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+
+        .control-item {
+            margin: 5px 0;
+            color: #ddd;
+        }
+
+        /* 弹窗（暂停/游戏结束） */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-title {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #00f5d4;
+        }
+
+        .modal-subtitle {
+            font-size: 1.5rem;
+            margin: 10px 0;
+            color: #fff;
+        }
+
+        .modal-text {
+            font-size: 1.2rem;
+            margin: 5px 0;
+            color: #ddd;
+        }
+
+        .modal-buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00f5d4, #00bbf9);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 245, 212, 0.4);
+        }
+
+        .btn-secondary {
+            background: #444;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
+        }
+
+        /* 开始游戏按钮 */
+        #start-btn {
+            margin-bottom: 20px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+        }
+
+        /* 幽灵方块样式（预览落点） */
+        .ghost-cell {
+            background: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        /* 方块颜色样式 */
+        .cell-I { background: #00f5d4; }
+        .cell-O { background: #f1fa8c; }
+        .cell-T { background: #dDA0DD; }
+        .cell-L { background: #ffb347; }
+        .cell-J { background: #87ceeb; }
+        .cell-S { background: #98fb98; }
+        .cell-Z { background: #ff6347; }
+
+        /* 动画效果 */
+        @keyframes lineClear {
+            0% { background: #fff; }
+            100% { background: #222; }
+        }
+
+        .clear-animation {
+            animation: lineClear 0.5s ease;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .game-title {
+                font-size: 2rem;
+            }
+
+            #game-grid {
+                grid-template-columns: repeat(10, 25px);
+                grid-template-rows: repeat(20, 25px);
+            }
+
+            .grid-cell {
+                width: 25px;
+                height: 25px;
+            }
+
+            .info-panel {
+                width: 100%;
+                max-width: 350px;
+            }
+
+            .modal-title {
+                font-size: 2rem;
+            }
+
+            .modal-subtitle {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">俄罗斯方块</h1>
+    <button id="start-btn" class="btn btn-primary">开始游戏</button>
+
+    <div class="game-container">
+        <!-- 游戏网格 -->
+        <div class="game-grid-wrapper">
+            <div id="game-grid"></div>
+        </div>
+
+        <!-- 信息面板 -->
+        <div class="info-panel">
+            <h2 class="info-title">游戏信息</h2>
+
+            <div class="info-item">
+                <span class="info-label">分数:</span>
+                <span id="score" class="info-value">0</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">关卡:</span>
+                <span id="level" class="info-value">1</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">消行:</span>
+                <span id="lines-cleared" class="info-value">0</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">连击:</span>
+                <span id="combo" class="info-value">0</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">最高连击:</span>
+                <span id="max-combo" class="info-value">0</span>
+            </div>
+
+            <!-- 下一个方块预览 -->
+            <div class="next-piece-wrapper">
+                <h3 class="info-title" style="font-size: 1.2rem; margin-bottom: 8px;">下一个方块</h3>
+                <div id="next-piece"></div>
+            </div>
+
+            <!-- 控制说明 -->
+            <div class="controls">
+                <h3 class="info-title" style="font-size: 1.2rem; margin-bottom: 8px;">操作说明</h3>
+                <div class="control-item">← → : 左右移动</div>
+                <div class="control-item">↑ : 旋转方块</div>
+                <div class="control-item">↓ : 加速下落</div>
+                <div class="control-item">空格 : 直接落底</div>
+                <div class="control-item">P : 暂停/继续</div>
+                <div class="control-item">R : 重新开始</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 暂停弹窗 -->
+    <div id="pause-modal" class="modal">
+        <h2 class="modal-title">游戏暂停</h2>
+        <p class="modal-text">按 P 键或点击按钮继续游戏</p>
+        <div class="modal-buttons">
+            <button id="resume-btn" class="btn btn-primary">继续游戏</button>
+            <button id="restart-btn-pause" class="btn btn-secondary">重新开始</button>
+        </div>
+    </div>
+
+    <!-- 游戏结束弹窗 -->
+    <div id="game-over-modal" class="modal">
+        <h2 class="modal-title">游戏结束</h2>
+        <p class="modal-subtitle">最终成绩</p>
+        <p class="modal-text">分数: <span id="final-score">0</span></p>
+        <p class="modal-text">关卡: <span id="final-level">1</span></p>
+        <p class="modal-text">消行: <span id="final-lines">0</span></p>
+        <p class="modal-text">最高连击: <span id="final-max-combo">0</span></p>
+        <div class="modal-buttons">
+            <button id="restart-btn-over" class="btn btn-primary">重新开始</button>
+            <button id="quit-btn" class="btn btn-secondary">退出</button>
+        </div>
+    </div>
+
+    <script>
+        // ===================== 全局常量定义 =====================
+        // 网格尺寸
+        const GRID_WIDTH = 10;
+        const GRID_HEIGHT = 20;
+
+        // 方块尺寸（CSS中定义）
+        const CELL_SIZE = 30;
+        const NEXT_CELL_SIZE = 25;
+
+        // 方块形状定义 (I, O, T, L, J, S, Z)
+        const SHAPES = [
+            // I
+            [[1, 1, 1, 1]],
+            // O
+            [[1, 1], [1, 1]],
+            // T
+            [[0, 1, 0], [1, 1, 1]],
+            // L
+            [[0, 0, 1], [1, 1, 1]],
+            // J
+            [[1, 0, 0], [1, 1, 1]],
+            // S
+            [[0, 1, 1], [1, 1, 0]],
+            // Z
+            [[1, 1, 0], [0, 1, 1]]
+        ];
+
+        // 方块类型映射
+        const SHAPE_TYPES = ['I', 'O', 'T', 'L', 'J', 'S', 'Z'];
+
+        // 游戏速度（关卡 -> 下落间隔ms）
+        const LEVEL_SPEED = {
+            1: 1000,
+            2: 800,
+            3: 600,
+            4: 400,
+            5: 300,
+            6: 250,
+            7: 200,
+            8: 150,
+            9: 100,
+            10: 80,
+            11: 60,
+            12: 50,
+            13: 40,
+            14: 30,
+            15: 20
+        };
+
+        // 计分规则
+        const SCORE_PER_LINE = {
+            1: 100,
+            2: 300,
+            3: 500,
+            4: 800
+        };
+
+        // 游戏状态枚举
+        const GameState = {
+            READY: 0,
+            PLAYING: 1,
+            PAUSED: 2,
+            GAME_OVER: 3
+        };
+
+        // ===================== 游戏状态管理 =====================
+        let gameState = GameState.READY;
+        let gameGrid = [];          // 游戏网格数据
+        let currentPiece = null;    // 当前下落的方块
+        let nextPiece = null;       // 下一个方块
+        let score = 0;              // 当前分数
+        let level = 1;              // 当前关卡
+        let linesCleared = 0;       // 已消行数
+        let combo = 0;              // 当前连击数
+        let maxCombo = 0;           // 最高连击数
+        let gameInterval = null;    // 游戏主循环定时器
+        let fallSpeed = LEVEL_SPEED[1]; // 当前下落速度
+
+        // DOM元素引用
+        const gameGridEl = document.getElementById('game-grid');
+        const nextPieceEl = document.getElementById('next-piece');
+        const scoreEl = document.getElementById('score');
+        const levelEl = document.getElementById('level');
+        const linesClearedEl = document.getElementById('lines-cleared');
+        const comboEl = document.getElementById('combo');
+        const maxComboEl = document.getElementById('max-combo');
+        const startBtn = document.getElementById('start-btn');
+        const pauseModal = document.getElementById('pause-modal');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const resumeBtn = document.getElementById('resume-btn');
+        const restartBtnPause = document.getElementById('restart-btn-pause');
+        const restartBtnOver = document.getElementById('restart-btn-over');
+        const quitBtn = document.getElementById('quit-btn');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalLevelEl = document.getElementById('final-level');
+        const finalLinesEl = document.getElementById('final-lines');
+        const finalMaxComboEl = document.getElementById('final-max-combo');
+
+        // ===================== 初始化函数 =====================
+        /**
+         * 初始化游戏网格（DOM + 数据）
+         */
+        function initGameGrid() {
+            // 清空网格DOM
+            gameGridEl.innerHTML = '';
+            // 初始化网格数据（0表示空）
+            gameGrid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));
+
+            // 创建网格单元格DOM
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    gameGridEl.appendChild(cell);
+                }
+            }
+
+            // 初始化下一个方块预览区
+            initNextPieceGrid();
+        }
+
+        /**
+         * 初始化下一个方块预览网格
+         */
+        function initNextPieceGrid() {
+            nextPieceEl.innerHTML = '';
+            // 创建4x4预览网格
+            for (let y = 0; y < 4; y++) {
+                for (let x = 0; x < 4; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'next-cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    nextPieceEl.appendChild(cell);
+                }
+            }
+        }
+
+        /**
+         * 初始化游戏状态
+         */
+        function initGameState() {
+            score = 0;
+            level = 1;
+            linesCleared = 0;
+            combo = 0;
+            maxCombo = 0;
+            fallSpeed = LEVEL_SPEED[1];
+
+            // 更新UI显示
+            updateInfoPanel();
+
+            // 生成第一个方块
+            generateNextPiece();
+            spawnCurrentPiece();
+
+            // 设置游戏状态
+            gameState = GameState.PLAYING;
+
+            // 启动游戏循环
+            startGameLoop();
+        }
+
+        /**
+         * 初始化事件监听
+         */
+        function initEventListeners() {
+            // 开始游戏按钮
+            startBtn.addEventListener('click', startGame);
+
+            // 暂停弹窗按钮
+            resumeBtn.addEventListener('click', resumeGame);
+            restartBtnPause.addEventListener('click', restartGame);
+
+            // 游戏结束弹窗按钮
+            restartBtnOver.addEventListener('click', restartGame);
+            quitBtn.addEventListener('click', quitGame);
+
+            // 键盘控制
+            document.addEventListener('keydown', handleKeydown);
+        }
+
+        // ===================== 方块操作函数 =====================
+        /**
+         * 生成随机方块
+         * @returns {Object} 方块对象（shape, type, x, y）
+         */
+        function generateRandomPiece() {
+            const shapeIndex = Math.floor(Math.random() * SHAPES.length);
+            const shape = SHAPES[shapeIndex];
+            const type = SHAPE_TYPES[shapeIndex];
+
+            // 计算初始位置（居中）
+            const x = Math.floor((GRID_WIDTH - shape[0].length) / 2);
+            const y = 0;
+
+            return {
+                shape,
+                type,
+                x,
+                y
+            };
+        }
+
+        /**
+         * 生成下一个方块
+         */
+        function generateNextPiece() {
+            nextPiece = generateRandomPiece();
+            renderNextPiece();
+        }
+
+        /**
+         * 生成当前下落的方块
+         */
+        function spawnCurrentPiece() {
+            currentPiece = { ...nextPiece };
+            generateNextPiece();
+
+            // 检查生成时是否碰撞（游戏结束）
+            if (checkCollision(currentPiece.shape, currentPiece.x, currentPiece.y)) {
+                gameOver();
+            }
+
+            renderGame();
+        }
+
+        /**
+         * 旋转方块
+         * @param {Array} shape 方块形状
+         * @returns {Array} 旋转后的形状
+         */
+        function rotateShape(shape) {
+            // 转置矩阵并反转每行（顺时针90度）
+            const rotated = shape[0].map((_, index) =>
+                shape.map(row => row[index]).reverse()
+            );
+
+            // 移除空行和空列，优化碰撞检测
+            const filteredRows = rotated.filter(row => row.some(cell => cell));
+            const cols = filteredRows.length ? Math.max(...filteredRows.map(row => row.length)) : 0;
+
+            // 补全每行长度
+            return filteredRows.map(row => {
+                while (row.length < cols) row.push(0);
+                return row;
+            });
+        }
+
+        /**
+         * 检查方块碰撞
+         * @param {Array} shape 方块形状
+         * @param {number} x 方块X坐标
+         * @param {number} y 方块Y坐标
+         * @returns {boolean} 是否碰撞
+         */
+        function checkCollision(shape, x, y) {
+            for (let row = 0; row < shape.length; row++) {
+                for (let col = 0; col < shape[row].length; col++) {
+                    if (shape[row][col]) {
+                        const newX = x + col;
+                        const newY = y + row;
+
+                        // 检查边界碰撞
+                        if (newX < 0 || newX >= GRID_WIDTH || newY >= GRID_HEIGHT) {
+                            return true;
+                        }
+
+                        // 忽略上边界外的区域
+                        if (newY < 0) continue;
+
+                        // 检查与已放置方块碰撞
+                        if (gameGrid[newY][newX]) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        /**
+         * 移动方块
+         * @param {number} dx X轴偏移
+         * @param {number} dy Y轴偏移
+         * @returns {boolean} 是否移动成功
+         */
+        function movePiece(dx, dy) {
+            if (gameState !== GameState.PLAYING) return false;
+
+            const newX = currentPiece.x + dx;
+            const newY = currentPiece.y + dy;
+
+            // 检查碰撞
+            if (!checkCollision(currentPiece.shape, newX, newY)) {
+                currentPiece.x = newX;
+                currentPiece.y = newY;
+                renderGame();
+                return true;
+            }
+
+            // 向下移动碰撞 -> 锁定方块
+            if (dy > 0) {
+                lockPiece();
+                return false;
+            }
+
+            return false;
+        }
+
+        /**
+         * 旋转当前方块
+         */
+        function rotateCurrentPiece() {
+            if (gameState !== GameState.PLAYING) return;
+
+            const rotatedShape = rotateShape(currentPiece.shape);
+
+            // 检查旋转后是否碰撞
+            if (!checkCollision(rotatedShape, currentPiece.x, currentPiece.y)) {
+                currentPiece.shape = rotatedShape;
+                renderGame();
+            } else {
+                // 尝试墙踢（边界碰撞时微调位置）
+                if (!checkCollision(rotatedShape, currentPiece.x - 1, currentPiece.y)) {
+                    currentPiece.shape = rotatedShape;
+                    currentPiece.x -= 1;
+                    renderGame();
+                } else if (!checkCollision(rotatedShape, currentPiece.x + 1, currentPiece.y)) {
+                    currentPiece.shape = rotatedShape;
+                    currentPiece.x += 1;
+                    renderGame();
+                }
+            }
+        }
+
+        /**
+         * 锁定方块到网格
+         */
+        function lockPiece() {
+            // 将方块写入网格数据
+            for (let row = 0; row < currentPiece.shape.length; row++) {
+                for (let col = 0; col < currentPiece.shape[row].length; col++) {
+                    if (currentPiece.shape[row][col]) {
+                        const x = currentPiece.x + col;
+                        const y = currentPiece.y + row;
+
+                        if (y >= 0 && x >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
+                            gameGrid[y][x] = currentPiece.type;
+                        }
+                    }
+                }
+            }
+
+            // 检查并清除满行
+            clearLines();
+
+            // 生成新方块
+            spawnCurrentPiece();
+        }
+
+        /**
+         * 硬降（直接落底）
+         */
+        function hardDrop() {
+            if (gameState !== GameState.PLAYING) return;
+
+            // 逐步向下直到碰撞
+            while (movePiece(0, 1)) {}
+        }
+
+        /**
+         * 计算幽灵方块位置（预览落点）
+         * @returns {number} 幽灵方块Y坐标
+         */
+        function getGhostY() {
+            let ghostY = currentPiece.y;
+            while (!checkCollision(currentPiece.shape, currentPiece.x, ghostY + 1)) {
+                ghostY++;
+            }
+            return ghostY;
+        }
+
+        // ===================== 行操作函数 =====================
+        /**
+         * 检查并清除满行
+         */
+        function clearLines() {
+            let linesToClear = [];
+
+            // 找出所有满行
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                if (gameGrid[y].every(cell => cell !== 0)) {
+                    linesToClear.push(y);
+                }
+            }
+
+            // 没有满行 -> 重置连击
+            if (linesToClear.length === 0) {
+                combo = 0;
+                updateInfoPanel();
+                return;
+            }
+
+            // 播放消行动画
+            animateLineClear(linesToClear);
+
+            // 更新连击
+            combo += linesToClear.length;
+            maxCombo = Math.max(maxCombo, combo);
+
+            // 计算得分
+            const baseScore = SCORE_PER_LINE[linesToClear.length] || 0;
+            const levelMultiplier = 1 + (level - 1) * 0.2; // 关卡乘数
+            const comboMultiplier = 1 + (combo - 1) * 0.1; // 连击乘数
+            const scoreGained = Math.floor(baseScore * levelMultiplier * comboMultiplier);
+
+            // 更新分数和消行数
+            score += scoreGained;
+            linesCleared += linesToClear.length;
+
+            // 检查关卡升级
+            checkLevelUp();
+
+            // 更新UI
+            updateInfoPanel();
+
+            // 清除满行并补充空行
+            setTimeout(() => {
+                for (let y of linesToClear.reverse()) {
+                    // 移除满行
+                    gameGrid.splice(y, 1);
+                    // 在顶部添加空行
+                    gameGrid.unshift(Array(GRID_WIDTH).fill(0));
+                }
+                renderGame();
+            }, 300);
+        }
+
+        /**
+         * 消行动画
+         * @param {Array} lines 要清除的行索引
+         */
+        function animateLineClear(lines) {
+            lines.forEach(y => {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cell = getGridCell(x, y);
+                    if (cell) {
+                        cell.classList.add('clear-animation');
+                        setTimeout(() => {
+                            cell.classList.remove('clear-animation');
+                        }, 500);
+                    }
+                }
+            });
+        }
+
+        /**
+         * 检查关卡升级
+         */
+        function checkLevelUp() {
+            const newLevel = Math.min(Math.floor(linesCleared / 10) + 1, 15);
+            if (newLevel > level) {
+                level = newLevel;
+                fallSpeed = LEVEL_SPEED[level] || LEVEL_SPEED[15];
+
+                // 重启游戏循环以应用新速度
+                restartGameLoop();
+            }
+        }
+
+        // ===================== 渲染函数 =====================
+        /**
+         * 获取网格单元格DOM元素
+         * @param {number} x X坐标
+         * @param {number} y Y坐标
+         * @returns {HTMLElement|null} 单元格元素
+         */
+        function getGridCell(x, y) {
+            return gameGridEl.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+        }
+
+        /**
+         * 获取下一个方块预览单元格DOM元素
+         * @param {number} x X坐标
+         * @param {number} y Y坐标
+         * @returns {HTMLElement|null} 单元格元素
+         */
+        function getNextCell(x, y) {
+            return nextPieceEl.querySelector(`.next-cell[data-x="${x}"][data-y="${y}"]`);
+        }
+
+        /**
+         * 渲染游戏画面
+         */
+        function renderGame() {
+            // 清空所有单元格样式
+            document.querySelectorAll('.grid-cell').forEach(cell => {
+                cell.className = 'grid-cell';
+            });
+
+            // 绘制已放置的方块
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cellType = gameGrid[y][x];
+                    if (cellType) {
+                        const cell = getGridCell(x, y);
+                        cell.classList.add(`cell-${cellType}`);
+                    }
+                }
+            }
+
+            // 绘制幽灵方块（预览落点）
+            const ghostY = getGhostY();
+            for (let row = 0; row < currentPiece.shape.length; row++) {
+                for (let col = 0; col < currentPiece.shape[row].length; col++) {
+                    if (currentPiece.shape[row][col]) {
+                        const x = currentPiece.x + col;
+                        const y = ghostY + row;
+                        if (y >= 0 && x >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
+                            const cell = getGridCell(x, y);
+                            cell.classList.add('ghost-cell');
+                        }
+                    }
+                }
+            }
+
+            // 绘制当前下落的方块
+            for (let row = 0; row < currentPiece.shape.length; row++) {
+                for (let col = 0; col < currentPiece.shape[row].length; col++) {
+                    if (currentPiece.shape[row][col]) {
+                        const x = currentPiece.x + col;
+                        const y = currentPiece.y + row;
+                        if (y >= 0 && x >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
+                            const cell = getGridCell(x, y);
+                            cell.classList.add(`cell-${currentPiece.type}`);
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * 渲染下一个方块预览
+         */
+        function renderNextPiece() {
+            // 清空预览区样式
+            document.querySelectorAll('.next-cell').forEach(cell => {
+                cell.className = 'next-cell';
+            });
+
+            if (!nextPiece) return;
+
+            // 计算预览区居中偏移
+            const offsetX = Math.floor((4 - nextPiece.shape[0].length) / 2);
+            const offsetY = Math.floor((4 - nextPiece.shape.length) / 2);
+
+            // 绘制下一个方块
+            for (let row = 0; row < nextPiece.shape.length; row++) {
+                for (let col = 0; col < nextPiece.shape[row].length; col++) {
+                    if (nextPiece.shape[row][col]) {
+                        const x = offsetX + col;
+                        const y = offsetY + row;
+                        const cell = getNextCell(x, y);
+                        cell.classList.add(`cell-${nextPiece.type}`);
+                    }
+                }
+            }
+        }
+
+        /**
+         * 更新信息面板显示
+         */
+        function updateInfoPanel() {
+            scoreEl.textContent = score;
+            levelEl.textContent = level;
+            linesClearedEl.textContent = linesCleared;
+            comboEl.textContent = combo;
+            maxComboEl.textContent = maxCombo;
+        }
+
+        // ===================== 游戏控制函数 =====================
+        /**
+         * 开始游戏
+         */
+        function startGame() {
+            startBtn.style.display = 'none';
+            initGameGrid();
+            initGameState();
+        }
+
+        /**
+         * 暂停游戏
+         */
+        function pauseGame() {
+            if (gameState !== GameState.PLAYING) return;
+
+            gameState = GameState.PAUSED;
+            clearInterval(gameInterval);
+            pauseModal.classList.add('active');
+        }
+
+        /**
+         * 恢复游戏
+         */
+        function resumeGame() {
+            if (gameState !== GameState.PAUSED) return;
+
+            gameState = GameState.PLAYING;
+            pauseModal.classList.remove('active');
+            startGameLoop();
+        }
+
+        /**
+         * 重新开始游戏
+         */
+        function restartGame() {
+            // 关闭所有弹窗
+            pauseModal.classList.remove('active');
+            gameOverModal.classList.remove('active');
+
+            // 清除定时器
+            clearInterval(gameInterval);
+
+            // 重新初始化
+            initGameGrid();
+            initGameState();
+        }
+
+        /**
+         * 退出游戏
+         */
+        function quitGame() {
+            gameOverModal.classList.remove('active');
+            gameState = GameState.READY;
+
+            // 重置界面
+            startBtn.style.display = 'block';
+            initGameGrid();
+        }
+
+        /**
+         * 游戏结束
+         */
+        function gameOver() {
+            gameState = GameState.GAME_OVER;
+            clearInterval(gameInterval);
+
+            // 更新结束弹窗数据
+            finalScoreEl.textContent = score;
+            finalLevelEl.textContent = level;
+            finalLinesEl.textContent = linesCleared;
+            finalMaxComboEl.textContent = maxCombo;
+
+            // 显示结束弹窗
+            gameOverModal.classList.add('active');
+        }
+
+        /**
+         * 启动游戏循环
+         */
+        function startGameLoop() {
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                movePiece(0, 1);
+            }, fallSpeed);
+        }
+
+        /**
+         * 重启游戏循环（用于速度变化）
+         */
+        function restartGameLoop() {
+            if (gameState === GameState.PLAYING) {
+                startGameLoop();
+            }
+        }
+
+        /**
+         * 处理键盘事件
+         * @param {KeyboardEvent} e 键盘事件
+         */
+        function handleKeydown(e) {
+            switch (e.key) {
+                // 左移
+                case 'ArrowLeft':
+                    movePiece(-1, 0);
+                    break;
+                // 右移
+                case 'ArrowRight':
+                    movePiece(1, 0);
+                    break;
+                // 下移
+                case 'ArrowDown':
+                    movePiece(0, 1);
+                    break;
+                // 旋转
+                case 'ArrowUp':
+                    rotateCurrentPiece();
+                    break;
+                // 硬降
+                case ' ':
+                    hardDrop();
+                    break;
+                // 暂停/继续
+                case 'p':
+                case 'P':
+                    if (gameState === GameState.PLAYING) {
+                        pauseGame();
+                    } else if (gameState === GameState.PAUSED) {
+                        resumeGame();
+                    }
+                    break;
+                // 重新开始
+                case 'r':
+                case 'R':
+                    restartGame();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // ===================== 初始化游戏 =====================
+        window.addEventListener('load', () => {
+            initGameGrid();
+            initEventListeners();
+        });
+    </script>
+</body>
+</html>
